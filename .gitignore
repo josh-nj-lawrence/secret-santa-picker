@@ -1,0 +1,11 @@
+# Virtual Environment
+venv/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing password file
+app-password.txt
