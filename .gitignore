@@ -9,3 +9,9 @@ __pycache__/
 
 # Testing password file
 app-password.txt
+.pypirc
+
+# Package build files
+*.egg-info/
+dist/
+build/
