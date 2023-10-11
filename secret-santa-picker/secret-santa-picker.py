@@ -31,13 +31,14 @@ class SecretSantaGame:
         """
         Take participents and pick pairs.
         """
+        retry_counter = 0
         # Make a copy of the participents list to draw from
         participents = copy.deepcopy(participent_list)
         for participent in participent_list:
             # Pick a random participent from the list
             receiver = random.choice(participents)
             # If the receiver is the same as the giver or the giver is in the receivers DontPick list, pick again
-            while receiver == participent or receiver.name in participent.DontPick or participent.name in receiver.DontPick:
+            while receiver == participent or receiver.name in participent.DontPick:
                 # If there are no more valid participents to pick from, restart until a valid solution is reached
                 # hat only has last person to draw, 
                 # hat only has 1 person and it's on partipent's DontPick list,
@@ -52,11 +53,16 @@ class SecretSantaGame:
                     self.pairs = []
                     # Restart the game
                     return False
+                retry_counter += 1
                 # Redraw case
                 receiver = random.choice(participents)
+                if retry_counter > 100:
+                    print("Too many retries. Restarting...")
+                    self.pairs = []
+                    return False
             # Add participents receiver to the DontPick list for subsequent games if applicable
             participent.DontPick.append(receiver.name)
-            # Add participent to receivers DontPick list 
+            # Add participent to receivers DontPick list to try to avoid pairings
             receiver.DontPick.append(participent.name)
             # Add the pair to the list of pairs
             self.pairs.append((participent, receiver))
@@ -64,24 +70,26 @@ class SecretSantaGame:
             participents.remove(receiver)
         return True
 
-    def dry_run(self, participent_list):
+    def run(self, participent_list):
         """
         Run a dry run and print results to the console instead of sending emails.
         """
         solution_found = False
+        retry_counter = 0
         while not solution_found:
             participent_copy = copy.deepcopy(participent_list)
             print("Looking for solution...")
             solution_found = self.play_game(participent_copy)
+            retry_counter += 1
+            if retry_counter > 100:
+                print("Too many retries. Restarting...")
+                SystemError("Unable to find a valid solution. Exiting...")
            
         print("Valid solution found!\n\n")
-        participent_list = participent_copy
+        self.participents = participent_copy
         for pair in self.pairs:
             print(f"{pair[0].name} is giving to {pair[1].name}")
-
-    def run(self):
-        pass
-
+        
 
 if __name__ == "__main__":
     # Example usage
@@ -100,12 +108,12 @@ if __name__ == "__main__":
 
     # Create game instance
     secretsanta = SecretSantaGame(participents)
-    bluebox = SecretSantaGame(participents[0:8])
     # Play game
     print("\n\nSECRET SANTA DRAW")
-    secretsanta.dry_run(secretsanta.participents)
-    print("\n\nBLUE BOX DRAW")
-    bluebox.dry_run(bluebox.participents)
-    # Print participent list after
-    #print(participents)
+    secretsanta.run(secretsanta.participents)
 
+    print("\n\nBLUE BOX DRAW")
+    bluebox = SecretSantaGame(secretsanta.participents[0:8])
+    bluebox.run(bluebox.participents)
+
+    # Send emails to participents
