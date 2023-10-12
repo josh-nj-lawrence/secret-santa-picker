@@ -1,7 +1,7 @@
 import random
 from typing import List
 import copy
-# import email_manager
+import email_manager
 
 class Participent:
     """
@@ -23,38 +23,33 @@ class SecretSantaGame:
     """
     Game instance takes participents and picks pairs.
     """
-    def __init__(self, participents: List[Participent]):
+    def __init__(self, participents: List[Participent], _send_emails: bool = False):
         self.participents = participents
         self.pairs = [] # Pairs are tuples of (giver, receiver)
+        self._send_emails = _send_emails # Specify weather or not run method should send emails to recipients
+        self._names_drawn = False # Flag to indicate if names have been drawn
 
-    def play_game(self, participent_list) -> bool:
+    def draw_names(self) -> bool:
         """
         Take participents and pick pairs.
         """
         retry_counter = 0
         # Make a copy of the participents list to draw from
-        participents = copy.deepcopy(participent_list)
+        participents = copy.deepcopy(self.participents)
+        participent_list = copy.deepcopy(self.participents)
+        random.shuffle(participent_list)
         for participent in participent_list:
-            # Pick a random participent from the list
             receiver = random.choice(participents)
             # If the receiver is the same as the giver or the giver is in the receivers DontPick list, pick again
             while receiver == participent or receiver.name in participent.DontPick:
-                # If there are no more valid participents to pick from, restart until a valid solution is reached
-                # hat only has last person to draw, 
-                # hat only has 1 person and it's on partipent's DontPick list,
-                # hat has multiple left all in participents dont pick list,
-                # hat has multiple left and it's the partipent and a person on their DontPick list
+                # If there are no valid participents remaining to pick from, restart the game
                 if len(participents) == 1 \
                     or all(p.name in participent.DontPick for p in participents) \
                     or all(p.name in ([participent.name] + participent.DontPick) for p in participents):
-                    # Inform user
                     print("No valid solution found. Restarting...")
-                    # Clear the list of pairs
                     self.pairs = []
-                    # Restart the game
                     return False
                 retry_counter += 1
-                # Redraw case
                 receiver = random.choice(participents)
                 if retry_counter > 100:
                     print("Too many retries. Restarting...")
@@ -68,27 +63,42 @@ class SecretSantaGame:
             self.pairs.append((participent, receiver))
             # Remove the receiver from the list of participents
             participents.remove(receiver)
+        self.participents = participent_list
         return True
 
-    def run(self, participent_list):
+    def run(self):
         """
         Run a dry run and print results to the console instead of sending emails.
         """
         solution_found = False
         retry_counter = 0
         while not solution_found:
-            participent_copy = copy.deepcopy(participent_list)
-            print("Looking for solution...")
-            solution_found = self.play_game(participent_copy)
+            solution_found = self.draw_names()
             retry_counter += 1
             if retry_counter > 100:
-                print("Too many retries. Restarting...")
                 SystemError("Unable to find a valid solution. Exiting...")
            
         print("Valid solution found!\n\n")
-        self.participents = participent_copy
+        
+
+    def send_emails(self):
+        """
+        Send emails to participents with their assigned pair.
+        """
+        if not self._names_drawn:
+            self.draw_names()
+        for participent in self.participents:
+            # Find the pair for the participent
+            pair = [pair for pair in self.pairs if pair[0] == participent][0]
+            # Send email to participent
+            email_manager.send_email(participent.email, pair[1].name)
+
+    def print_pairs(self):
         for pair in self.pairs:
             print(f"{pair[0].name} is giving to {pair[1].name}")
+
+    def config_email(self):
+        pass
         
 
 if __name__ == "__main__":
@@ -110,10 +120,10 @@ if __name__ == "__main__":
     secretsanta = SecretSantaGame(participents)
     # Play game
     print("\n\nSECRET SANTA DRAW")
-    secretsanta.run(secretsanta.participents)
+    secretsanta.run()
 
     print("\n\nBLUE BOX DRAW")
     bluebox = SecretSantaGame(secretsanta.participents[0:8])
-    bluebox.run(bluebox.participents)
+    bluebox.run()
 
     # Send emails to participents
