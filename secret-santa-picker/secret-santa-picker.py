@@ -1,6 +1,8 @@
 import random
 from typing import List
 import copy
+import sys
+sys.path.append("..")
 import email_manager
 
 class Participent:
@@ -64,11 +66,12 @@ class SecretSantaGame:
             # Remove the receiver from the list of participents
             participents.remove(receiver)
         self.participents = participent_list
+        self._names_drawn = True
         return True
 
     def run(self):
         """
-        Run a dry run and print results to the console instead of sending emails.
+        Run the secret santa game.
         """
         solution_found = False
         retry_counter = 0
@@ -91,6 +94,7 @@ class SecretSantaGame:
             # Find the pair for the participent
             pair = [pair for pair in self.pairs if pair[0] == participent][0]
             # Send email to participent
+            #TODO config instance emailer
             email_manager.send_email(participent.email, pair[1].name)
 
     def print_pairs(self):
@@ -105,25 +109,39 @@ if __name__ == "__main__":
     # Example usage
 
     # Create participents and add to list
-    josh = Participent("josh", "josh.nj.lawrence@gmail.com", ["julee"])
-    julee = Participent("julee", "josh.nj.lawrence@gmail.com", ["josh"])
-    mike = Participent("mike", "josh.nj.lawrence@gmail.com", ["leslee"])
-    leslee = Participent("leslee", "josh.nj.lawrence@gmail.com", ["mike"])
-    kyle = Participent("kyle", "josh.nj.lawrence@gmail.com", ["rylan"])
-    rylan = Participent("rylan", "josh.nj.lawrence@gmail.com", ["kyle"])
-    mitchell = Participent("mitchell", "josh.nj.lawrence@gmail.com", ["lorin", "emilia"])
-    lorin = Participent("lorin", "josh.nj.lawrence@gmail.com", ["mitchell", "emilia"])
-    emilia = Participent("emilia", "josh.nj.lawrence@gmail.com", ["lorin", "mitchell"])
-    participents = [josh, julee, mike, leslee, kyle, rylan, mitchell, lorin, emilia]
-
+    Josh = Participent("Josh", "josh.nj.lawrence@gmail.com", ["Julee"])
+    Julee = Participent("Julee", None, ["Josh"])
+    Mike = Participent("Mike", None, ["Leslee"])
+    Leslee = Participent("Leslee", None, ["Mike"])
+    Kyle = Participent("Kyle", None, ["Rylan"])
+    Rylan = Participent("Rylan", None, ["Kyle"])
+    Mitchell = Participent("Mitchell", None, ["Lorin", "Emilia"])
+    Lorin = Participent("Lorin", None, ["Mitchell", "Emilia"])
+    Emilia = Participent("Emilia", None, ["Lorin", "Mitchell"])
+    participents = [Josh, Julee, Mike, Leslee, Kyle, Rylan, Mitchell, Lorin, Emilia]
     # Create game instance
     secretsanta = SecretSantaGame(participents)
     # Play game
-    print("\n\nSECRET SANTA DRAW")
     secretsanta.run()
-
-    print("\n\nBLUE BOX DRAW")
-    bluebox = SecretSantaGame(secretsanta.participents[0:8])
+    bluebox_participents = [p for p in secretsanta.participents if p != Emilia]
+    bluebox = SecretSantaGame(bluebox_participents)
     bluebox.run()
 
     # Send emails to participents
+    emailer = email_manager.EmailManager()
+    pwd = input("Enter app password: ")
+    emailer.config("josh.nj.lawrence@gmail.com", pwd)
+
+    for participent in participents:
+        print("MSG TO {name}".format(name=participent.name.upper()))
+        if participent != Emilia:
+            blue_box_recipient = [pair[1].name for pair in bluebox.pairs if pair[0] == participent][0]
+        secret_santa_recipient = [pair[1].name for pair in secretsanta.pairs if pair[0] == participent][0]
+        sub = "Minniti Secret Santa & BlueBox!!!!"
+        msg = """Hello {name},\n\nWith Christmas apporaching, the following message will provide you with all relevant information for this year's gift exchange!\n\nThis year we will be continuing the Blue Box tradition, in addition to this we will run a concurrent secret santa gift exchange.\n\nThe rules of Blue Box are as follows: buy your selected recipient a gift whose total is closest in price (including tax) to this year and fits in the box.\nThis year we will be considering the closest value, even if it goes past the target value of $20.23.\n\nThe rules for our secret santa exchange are simply buy your recipient a present close to the price limit. This year the limit is $75.\n\nThe following should include your allocated recipients for this years exchanges:\n\nYou've been assigned {blue_box_recipient} for blue box and {secret_santa_recipient} for secret santa.\n\nCan't wait to celebrate with you all! See you at Christmas!""".format(name=participent.name, blue_box_recipient=blue_box_recipient, secret_santa_recipient=secret_santa_recipient)
+        if participent.name == "Emilia":
+            msg = """Hello {name},\n\nWith Christmas apporaching, the following message will provide you with all relevant information for this year's gift exchange!\n\nThis year we will be continuing the Blue Box tradition, in addition to this we will run a concurrent secret santa gift exchange.\n\nThe rules of Blue Box are as follows: buy your selected recipient a gift whose total is closest in price (including tax) to this year and fits in the box.\nThis year we will be considering the closest value, even if it goes past the target value of $20.23.\n\nThe rules for our secret santa exchange are simply buy your recipient a present close to the price limit. This year the limit is $75.\n\nThe following should include your allocated recipients for this years exchanges:\n\nYou've been assigned {secret_santa_recipient} for secret santa.\n\nCan't wait to celebrate with you all! See you at Christmas!""".format(name=participent.name, secret_santa_recipient=secret_santa_recipient)
+        
+        #emailer.send_email(participent.email, msg)
+        #print("\n\n\n"+msg)
+        emailer.send_email(participent.email, sub, msg)
